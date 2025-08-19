@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>知略と謀略の〇×ゲーム</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #000;
+      display: flex;
+      color: #fff;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 200px);
+      grid-template-rows: repeat(3, 200px);
+      border: 5px solid #000;
+    }
+
+    .cell {
+      border: 5px solid #fff;
+      color: #fff;
+      background: transparent;
+      width: 200px;
+      height: 200px;
+
+      font-size: 120px;
+      text-align: center;
+      line-height: 200px;
+      cursor: pointer;
+    }
+
+    .fade-out {
+  opacity: 0.3;
+}
+#resetButton {
+  margin-top: 30px;
+  font-size: 24px;
+  padding: 10px 30px;
+  cursor: pointer;
+  background: #222;
+  color: #fff;
+  border: 2px solid #fff;
+}
+#info {
+  font-size: 24px;
+  margin-bottom: 20px;
+  font-weight: bold;
+  text-align: center;
+  color: #0ff;
+}
+.win {
+  background-color: #4caf50; /* 明るめの緑、好きな色に変えてOK */
+  color: #fff;               /* 文字を白くして見やすく */
+}
+  </style>
+  
+</head>
+<body>
+    <div id="message">８回目の攻撃から１回目の攻撃が消えていくぞ！</div>
+    <div id="info">INFO　さあ、〇の攻撃だ！！</div>
+  <div class="board">
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+  </div>
+  <button id="resetButton">リセット</button>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  const info  = document.getElementById('info');
+  const cells = Array.from(document.querySelectorAll('.cell'));
+  const resetBtn = document.getElementById('resetButton');
+
+  // クリック → サーバーへ「このマス押したよ」
+  cells.forEach((cell, index) => {
+    cell.addEventListener('click', () => {
+      socket.emit('move', index); // ← イベント名は 'move'
+    });
+  });
+
+  // ===== サーバーからの通知を描画 =====
+  socket.on('assigned', (symbol) => {
+    console.log('あなたは:', symbol);
+  });
+
+  socket.on('board', ({ board, current }) => {
+    // 初期状態/再入室時の全体反映
+    cells.forEach((c, i) => {
+      c.textContent = board[i] || '';
+      c.classList.remove('fade-out','win');
+    });
+    info.textContent = `INFO　${current}の攻撃！！`;
+  });
+
+  socket.on('turn', (current) => {
+    info.textContent = `INFO　${current}の攻撃！！`;
+  });
+
+  socket.on('update', ({ index, player }) => {
+    // 誰かが置いた
+    cells[index].textContent = player;
+  });
+
+  socket.on('remove', ({ index }) => {
+    // 「8手目以降は最古手を消す」
+    const cell = cells[index];
+    cell.textContent = '';
+    cell.classList.remove('fade-out','win');
+  });
+
+  socket.on('win', (winner) => {
+    // サーバー側で判定済み
+    alert(`${winner} の勝ち！`);
+    info.textContent = `🎉 ${winner} の勝ち！`;
+  });
+
+  socket.on('draw', () => {
+    info.textContent = '引き分け！';
+  });
+
+  socket.on('reset', ({ board, current }) => {
+    cells.forEach((c, i) => {
+      c.textContent = '';
+      c.classList.remove('fade-out','win');
+    });
+    info.textContent = `INFO　${current}の攻撃！！`;
+  });
+
+  // 手動リセット（任意）
+  resetBtn.addEventListener('click', () => {
+    socket.emit('requestReset');
+  });
+</script>
+</body>
+</html>
