@@ -63,6 +63,8 @@
   background-color: #4caf50; /* 明るめの緑、好きな色に変えてOK */
   color: #fff;               /* 文字を白くして見やすく */
 }
+.cell { transition: opacity 0.2s ease; }
+.fade-out { opacity: 0.3; }
   </style>
   
 </head>
@@ -125,13 +127,20 @@
     cell.textContent = '';
     cell.classList.remove('fade-out','win');
   });
+  socket.on('markOldest', ({ index }) => {
+  cells.forEach(c => c.classList.remove('fade-out'));
+  cells[index].classList.add('fade-out');
+});
+socket.on('clearMarks', () => {
+  cells.forEach(c => c.classList.remove('fade-out'));
+});
+socket.on('win', ({ winner, line }) => {
+  line.forEach(i => cells[i].classList.add('win'));
+  alert(`${winner} の勝ち！`);
+  info.textContent = `🎉 ${winner} の勝ち！`;
+});
 
-  socket.on('win', (winner) => {
-    // サーバー側で判定済み
-    alert(`${winner} の勝ち！`);
-    info.textContent = `🎉 ${winner} の勝ち！`;
-  });
-
+  
   socket.on('draw', () => {
     info.textContent = '引き分け！';
   });
@@ -147,7 +156,18 @@
   // 手動リセット（任意）
   resetBtn.addEventListener('click', () => {
     socket.emit('requestReset');
+
   });
+  let mySymbol = null;
+socket.on('assigned', (symbol) => {
+  mySymbol = symbol;
+  console.log('あなたは:', symbol);
+});
+socket.on('turn', (current) => {
+  const me = (current === mySymbol) ? '（あなたの番）' : '';
+  info.textContent = `INFO　${current}の攻撃！！ ${me}`;
+});
+  
 </script>
 </body>
 </html>
